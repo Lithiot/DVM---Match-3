@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum Type
+public enum Color
 {
     Red, Blue, Green, Yellow
 }
@@ -10,20 +10,22 @@ public enum Type
 public struct Tile
 {
     public Vector2Int posInList;
-    private Type type;
+    public Tile[] adjacents;
+    private Color type;
 
-    public void ChangeType(Type type)
+    public void ChangeType(Color type)
     {
         this.type = type;
     }
 
-    public Tile(Vector2Int posInList, Type type)
+    public Tile(Vector2Int posInList, Color type)
     {
         this.posInList = posInList;
         this.type = type;
+        adjacents = new Tile[4];
     }
 
-    public Type Type { get => type; set => type = value; }
+    public Color Type { get => type; set => type = value; }
 }
 
 public class Model

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEditor;
 
 public class View : MonoBehaviour
 {
@@ -19,16 +20,16 @@ public class View : MonoBehaviour
             {
                 switch (tileList[y][x].Type)
                 {
-                    case Type.Red:
+                    case Color.Red:
                         objList[y][x].GetComponent<SpriteRenderer>().sprite = redSprite;
                         break;
-                    case Type.Blue:
+                    case Color.Blue:
                         objList[y][x].GetComponent<SpriteRenderer>().sprite = blueSprite;
                         break;
-                    case Type.Green:
+                    case Color.Green:
                         objList[y][x].GetComponent<SpriteRenderer>().sprite = greenSprite;
                         break;
-                    case Type.Yellow:
+                    case Color.Yellow:
                         objList[y][x].GetComponent<SpriteRenderer>().sprite = yellowSprite;
                         break;
                     default:
