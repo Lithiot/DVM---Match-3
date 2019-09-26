@@ -24,10 +24,12 @@ public class GooglePlayServicesController : MonoBehaviour
 
     private void Start()
     {
+#if UNITY_ANDROID && !UNITY_EDITOR
         Social.ReportProgress("CgkIrMXHw5UDEAIQAg", 0.0f, (bool success) => {
         });
         Social.ReportProgress("CgkIrMXHw5UDEAIQAg", 100.0f, (bool success) => {
         });
+#endif
     }
 
     private void SignIn()

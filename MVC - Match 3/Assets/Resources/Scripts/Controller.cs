@@ -32,11 +32,11 @@ public class Controller : MonoBehaviour
     [SerializeField] private View view;
 
     private List<List<GameObject>> prefabList = new List<List<GameObject>>();
-    private List<Tile> tilesToChange = new List<Tile>();
+    private List<TileClass> tilesToChange = new List<TileClass>();
 
-    private Tile firstTile;
+    private TileClass firstTile;
     private bool firstSelected = false;
-    private Tile secondTile;
+    private TileClass secondTile;
     private bool secondSelected = false;
     Vector3 originalFirstPos;
     Vector3 originalSecondPos;
@@ -54,31 +54,31 @@ public class Controller : MonoBehaviour
 
     private void GenerateTiles()
     {
-        Tile tile;
-        model.TileList = new List<List<Tile>>();
+        TileClass tile;
+        model.TileList = new List<List<TileClass>>();
 
         for (int y = 0; y < size.y; y++)
         {
-            model.TileList.Add(new List<Tile>());
+            model.TileList.Add(new List<TileClass>());
 
             for (int x = 0; x < size.x; x++)
             {
                 switch (Random.Range(0, 4))
                 {
                     case 0:
-                        tile = new Tile(new Vector2Int(y, x), Color.Red);
+                        tile = new TileClass(new Vector2Int(y, x), Color.Red);
                         model.TileList[y].Add(tile);
                         break;
                     case 1:
-                        tile = new Tile(new Vector2Int(y, x), Color.Blue);
+                        tile = new TileClass(new Vector2Int(y, x), Color.Blue);
                         model.TileList[y].Add(tile);
                         break;
                     case 2:
-                        tile = new Tile(new Vector2Int(y, x), Color.Green);
+                        tile = new TileClass(new Vector2Int(y, x), Color.Green);
                         model.TileList[y].Add(tile);
                         break;
                     case 3:
-                        tile = new Tile(new Vector2Int(y, x), Color.Yellow);
+                        tile = new TileClass(new Vector2Int(y, x), Color.Yellow);
                         model.TileList[y].Add(tile);
                         break;
                 }
@@ -102,45 +102,49 @@ public class Controller : MonoBehaviour
                 bool right = false;
 
                 // Checkeo tile superior
-                posToCheck = model.TileList[y][x].posInList - new Vector2Int(1, 0);
+                posToCheck = model.TileList[y][x].PosInList - new Vector2Int(1, 0);
                 if (IsInRange(posToCheck))
                 {
-                    model.TileList[y][x].adjacents[0] = model.TileList[posToCheck.x][posToCheck.y];
+                    if (!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
+                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
 
                     if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
                         up = true;
                 }
 
                 // Checkeo tile inferior
-                posToCheck = model.TileList[y][x].posInList + new Vector2Int(1, 0);
+                posToCheck = model.TileList[y][x].PosInList + new Vector2Int(1, 0);
                 if (IsInRange(posToCheck))
                 {
-                    model.TileList[y][x].adjacents[1] = model.TileList[posToCheck.x][posToCheck.y];
+                    if (!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
+                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
 
                     if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
                         down = true;
                 }
 
                 // Checkeo tile derecha
-                posToCheck = model.TileList[y][x].posInList + new Vector2Int(0, 1);
+                posToCheck = model.TileList[y][x].PosInList + new Vector2Int(0, 1);
                 if (IsInRange(posToCheck))
                 {
-                    model.TileList[y][x].adjacents[2] = model.TileList[posToCheck.x][posToCheck.y];
+                    if(!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
+                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
 
                     if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
                         right = true;
                 }
 
                 // Checkeo tile izquierda
-                posToCheck = model.TileList[y][x].posInList - new Vector2Int(0, 1);
+                posToCheck = model.TileList[y][x].PosInList - new Vector2Int(0, 1);
                 if (IsInRange(posToCheck))
                 {
-                    model.TileList[y][x].adjacents[3] = model.TileList[posToCheck.x][posToCheck.y];
+                    if (!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
+                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
 
                     if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
                         left = true;
                 }
-
+                /*
                 if (right && left)
                 {
                     if (!tilesToChange.Contains(model.TileList[y][x]))
@@ -165,6 +169,7 @@ public class Controller : MonoBehaviour
                         tilesToChange.Add(model.TileList[y + 1][x]);
 
                 }
+                */
             }
         }
 
@@ -172,12 +177,24 @@ public class Controller : MonoBehaviour
         {
             for (int i = 0; i < tilesToChange.Count; i++)
             {
-                Vector2Int aux = tilesToChange[i].posInList;
-                model.TileList[aux.x][aux.y] = new Tile(tilesToChange[i].posInList, ChangeType(tilesToChange[i].Type));
+                tilesToChange[i].Type = ChangeType(tilesToChange[i].Type);
             }
             tilesToChange.Clear();
 
             CheckForMatch();
+        }
+    }
+
+    public void TriggerMatch()
+    {
+        if (tilesToChange.Count > 0)
+        {
+            for (int i = 0; i < tilesToChange.Count; i++)
+            {
+                tilesToChange[i].Type = ChangeType(tilesToChange[i].Type);
+            }
+            tilesToChange.Clear();
+            view.Draw(model.TileList, prefabList);
         }
     }
 
@@ -246,64 +263,7 @@ public class Controller : MonoBehaviour
         Debug.Log("prefabList is: " + prefabList.Count + " long");
     }
 
-    private void Update()
-    {
-        if (Input.GetMouseButtonDown(0))
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hitInfo;
-            if (Physics.Raycast(ray, out hitInfo))
-                if (hitInfo.collider.CompareTag("Tile"))
-                {
-                    CheckTiles(hitInfo);
-                    if (firstSelected && secondSelected)
-                        SwapTiles();
-                }
-        }
-
-        view.Draw(model.TileList, prefabList);
-    }
-
-    private void SwapTiles()
-    {
-        GameObject first = prefabList[firstTile.posInList.x][firstTile.posInList.y];
-        GameObject second = prefabList[secondTile.posInList.x][secondTile.posInList.y];
-
-        originalFirstPos = first.transform.position;
-        originalSecondPos = second.transform.position;
-
-        StartCoroutine(LerpTiles(first, second));
-    }
-
-    IEnumerator LerpTiles(GameObject first, GameObject second)
-    {
-        bool lerpFinished = false;
-
-        while (!lerpFinished)
-        {
-            first.transform.position = Vector3.Lerp(originalFirstPos, originalSecondPos, 1f);
-            second.transform.position = Vector3.Lerp(originalSecondPos, originalFirstPos, 1f);
-
-            if (first.transform.position == originalSecondPos && second.transform.position == originalFirstPos)
-                lerpFinished = true;
-
-            yield return null;
-        }
-        Tile aux;
-        aux = firstTile;
-        model.TileList[firstTile.posInList.x][firstTile.posInList.y] = model.TileList[secondTile.posInList.x][secondTile.posInList.y];
-        model.TileList[secondTile.posInList.x][secondTile.posInList.y] = aux;
-
-        firstSelected = false;
-        secondSelected = false;
-
-        first.transform.position = originalFirstPos;
-        second.transform.position = originalSecondPos;
-
-        CheckForMatch();
-    }
-
-    private void CheckTiles(RaycastHit hitInfo)
+    public bool CheckTiles(RaycastHit hitInfo)
     {
         Vector2Int pos = new Vector2Int(-1, -1);
 
@@ -317,39 +277,108 @@ public class Controller : MonoBehaviour
 
         if (IsInRange(pos))
         {
-            if (!firstSelected)
+            TileClass aux = GetCorrespondantTile(pos);
+
+            if (tilesToChange.Count > 0)
             {
-                firstTile = GetCorrespondantTile(pos);
-                firstSelected = true;
+                if(tilesToChange[tilesToChange.Count - 1].Adjacents.Contains(aux))
+                    if (tilesToChange[tilesToChange.Count - 1].Type == GetCorrespondantTile(pos).Type)
+                        if(!tilesToChange.Contains(GetCorrespondantTile(pos)))
+                            tilesToChange.Add(GetCorrespondantTile(pos));
             }
-            else if (!secondSelected)
+            else
             {
-                secondTile = GetCorrespondantTile(pos);
-                secondSelected = true;
+                tilesToChange.Add(GetCorrespondantTile(pos));
             }
         }
-        else
-            firstSelected = secondSelected = false;
+        return false;
     }
 
-    private Tile GetCorrespondantTile(Vector2Int pos)
+    
+    private TileClass GetCorrespondantTile(Vector2Int pos)
     {
             return model.TileList[pos.x][pos.y];
     }
-
-    /*
+    
     private void OnDrawGizmos()
     {
+        foreach (TileClass g in tilesToChange)
+        {
+            Gizmos.color = UnityEngine.Color.white;
+            Gizmos.DrawWireCube(prefabList[g.PosInList.x][g.PosInList.y].transform.position, Vector3.one);
+        }
+
+
+        /*
 #if UNITY_EDITOR
         for (int y = 0; y < model.TileList.Count; y++)
         {
             for (int x = 0; x < model.TileList[y].Count; x++)
             {
-                Vector2Int aux = model.TileList[y][x].posInList;
+                Vector2Int aux = model.TileList[y][x].PosInList;
                 Handles.Label(prefabList[aux.x][aux.y].transform.position, aux.ToString());
             }
         }
 #endif
+*/
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+    private void SwapTiles()
+    {
+        GameObject first = prefabList[firstTile.PosInList.x][firstTile.PosInList.y];
+        GameObject second = prefabList[secondTile.PosInList.x][secondTile.PosInList.y];
+
+        originalFirstPos = first.transform.position;
+        originalSecondPos = second.transform.position;
+
+        StartCoroutine(LerpTiles(first, second));
+    }
+
+    IEnumerator LerpTiles(GameObject first, GameObject second)
+    {
+        bool lerpFinished = false;
+        float lerp = 0;
+
+        while (!lerpFinished)
+        {
+            lerp += Time.deltaTime;
+
+            first.transform.position = Vector3.Lerp(originalFirstPos, originalSecondPos, lerp);
+            second.transform.position = Vector3.Lerp(originalSecondPos, originalFirstPos, lerp);
+
+            if (first.transform.position == originalSecondPos && second.transform.position == originalFirstPos)
+                lerpFinished = true;
+
+            yield return null;
+        }
+
+        Color aux = firstTile.Type;
+
+        firstTile.Type = secondTile.Type;
+        secondTile.Type = aux;
+
+        firstSelected = false;
+        secondSelected = false;
+
+        first.transform.position = originalFirstPos;
+        second.transform.position = originalSecondPos;
+
+        CheckForMatch();
     }
     */
-}

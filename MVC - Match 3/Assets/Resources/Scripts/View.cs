@@ -4,15 +4,72 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEditor;
 
+public enum State
+{
+    Idle, Matching, Moving
+}
+
 public class View : MonoBehaviour
 {
+    private State state = State.Idle;
+
     [SerializeField] private Sprite redSprite;
     [SerializeField] private Sprite blueSprite;
     [SerializeField] private Sprite greenSprite;
     [SerializeField] private Sprite yellowSprite;
 
+    [SerializeField] private Controller controller;
+    [SerializeField] private float responseTime;
 
-    public void Draw(List<List<Tile>> tileList, List<List<GameObject>> objList)
+    float holdingTime = 0.0f;
+
+    private void Update()
+    {
+        switch (state)
+        {
+            case State.Idle:
+
+                break;
+            case State.Matching:
+
+                break;
+            case State.Moving:
+
+                break;
+        }
+
+        if (Input.GetMouseButton(0))
+        {
+            holdingTime += Time.deltaTime;
+
+            if (holdingTime >= responseTime)
+            {
+                DetectInput();
+            }
+        }
+        else if (holdingTime > 0)
+        {
+            controller.TriggerMatch();
+            holdingTime = 0.0f;
+        }
+        else
+        {
+            holdingTime = 0.0f;
+        }
+    }
+
+    private void DetectInput()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hitInfo;
+        if (Physics.Raycast(ray, out hitInfo))
+            if (hitInfo.collider.CompareTag("Tile"))
+            {
+                controller.CheckTiles(hitInfo);
+            }
+    }
+
+    public void Draw(List<List<TileClass>> tileList, List<List<GameObject>> objList)
     {
         for (int y = 0; y < objList.Count; y++)
         {
@@ -31,8 +88,6 @@ public class View : MonoBehaviour
                         break;
                     case Color.Yellow:
                         objList[y][x].GetComponent<SpriteRenderer>().sprite = yellowSprite;
-                        break;
-                    default:
                         break;
                 }
             }

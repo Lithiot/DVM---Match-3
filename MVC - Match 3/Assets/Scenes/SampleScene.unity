@@ -314,3 +314,5 @@ MonoBehaviour:
     type: 3}
   yellowSprite: {fileID: -4789670105439411607, guid: 2150f39a386dfb34596143b3e2b54ad2,
     type: 3}
+  controller: {fileID: 652723158}
+  responseTime: 0.2
