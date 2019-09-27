@@ -34,12 +34,12 @@ public class Controller : MonoBehaviour
     private List<List<GameObject>> prefabList = new List<List<GameObject>>();
     private List<TileClass> tilesToChange = new List<TileClass>();
 
-    private TileClass firstTile;
-    private bool firstSelected = false;
-    private TileClass secondTile;
-    private bool secondSelected = false;
+    Vector2Int lastTileSelected = new Vector2Int(-1, -1);
+
     Vector3 originalFirstPos;
     Vector3 originalSecondPos;
+
+    public List<TileClass> TilesToChange { get => tilesToChange; set => tilesToChange = value; }
 
 
     // Functions
@@ -187,7 +187,7 @@ public class Controller : MonoBehaviour
 
     public void TriggerMatch()
     {
-        if (tilesToChange.Count > 0)
+        if (tilesToChange.Count >= 3)
         {
             for (int i = 0; i < tilesToChange.Count; i++)
             {
@@ -196,6 +196,7 @@ public class Controller : MonoBehaviour
             tilesToChange.Clear();
             view.Draw(model.TileList, prefabList);
         }
+        tilesToChange.Clear();
     }
 
     private Color ChangeType(Color type)
@@ -278,22 +279,31 @@ public class Controller : MonoBehaviour
         if (IsInRange(pos))
         {
             TileClass aux = GetCorrespondantTile(pos);
-
+            
             if (tilesToChange.Count > 0)
             {
-                if(tilesToChange[tilesToChange.Count - 1].Adjacents.Contains(aux))
+                if (tilesToChange[tilesToChange.Count - 1].Adjacents.Contains(aux))
                     if (tilesToChange[tilesToChange.Count - 1].Type == GetCorrespondantTile(pos).Type)
-                        if(!tilesToChange.Contains(GetCorrespondantTile(pos)))
+                        if (!tilesToChange.Contains(GetCorrespondantTile(pos)))
                             tilesToChange.Add(GetCorrespondantTile(pos));
+                        else
+                        {
+                            for (int i = tilesToChange.IndexOf(GetCorrespondantTile(pos)) + 1; i < tilesToChange.Count; i++)
+                            {
+                                tilesToChange.RemoveAt(i);
+                            }
+                        }
             }
             else
             {
                 tilesToChange.Add(GetCorrespondantTile(pos));
             }
         }
+
+        lastTileSelected = pos;
+
         return false;
     }
-
     
     private TileClass GetCorrespondantTile(Vector2Int pos)
     {

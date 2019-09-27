@@ -57,7 +57,7 @@ public class View : MonoBehaviour
             holdingTime = 0.0f;
         }
     }
-
+    
     private void DetectInput()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
