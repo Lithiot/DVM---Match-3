@@ -1,394 +1,268 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
+
+enum State
+{
+    Matching, Resolving, Paused
+}
 
 public class Controller : MonoBehaviour
 {
-    // Singleton
-    // -----------------------------------------------------------------------------------------//
+    [SerializeField] private GameObject tilePrefab;
+    [SerializeField] private Vector2Int size;
+    [SerializeField] private Vector3 startingPos;
 
-    public static Controller instance;
+    private int points = 0;
+    public int Points { get => points; set => points = value; }
+
+    [SerializeField] private View view;
+    private Model model;
+
+    private List<Vector2Int> tilesToChange = new List<Vector2Int>();
+
+    private State currentState = State.Matching;
+    internal State CurrentState { get => currentState; set => currentState = value; }
 
     private void Awake()
     {
-        if (instance && instance != this)
-            Destroy(this);
-        else
-        {
-            instance = this;
-            DontDestroyOnLoad(this);
-        }
+        model = new Model();
+        CreateGrids();
     }
 
-    // Variables
-    // -----------------------------------------------------------------------------------------//
-
-    [SerializeField] private Vector2Int size;
-    [SerializeField] private Vector3 startingPos;
-    [SerializeField] private GameObject prefab;
-
-    private Model model = new Model();
-    [SerializeField] private View view;
-
-    private List<List<GameObject>> prefabList = new List<List<GameObject>>();
-    private List<TileClass> tilesToChange = new List<TileClass>();
-
-    Vector2Int lastTileSelected = new Vector2Int(-1, -1);
-
-    Vector3 originalFirstPos;
-    Vector3 originalSecondPos;
-
-    public List<TileClass> TilesToChange { get => tilesToChange; set => tilesToChange = value; }
-
-
-    // Functions
-    // -----------------------------------------------------------------------------------------//
-
-    private void Start()
+    private void Update()
     {
-        GeneratePrefabGrid();
-        GenerateTiles();
-        SendToDraw();
+        if (CurrentState == State.Resolving)
+            ResolveMatch();
     }
 
-    private void GenerateTiles()
+    private void ResolveMatch()
     {
-        TileClass tile;
-        model.TileList = new List<List<TileClass>>();
+        int changes = 0;
 
-        for (int y = 0; y < size.y; y++)
+        do
         {
-            model.TileList.Add(new List<TileClass>());
+            changes = 0;
 
             for (int x = 0; x < size.x; x++)
             {
-                switch (Random.Range(0, 4))
+                for (int y = 0; y < size.y; y++)
                 {
-                    case 0:
-                        tile = new TileClass(new Vector2Int(y, x), Color.Red);
-                        model.TileList[y].Add(tile);
-                        break;
-                    case 1:
-                        tile = new TileClass(new Vector2Int(y, x), Color.Blue);
-                        model.TileList[y].Add(tile);
-                        break;
-                    case 2:
-                        tile = new TileClass(new Vector2Int(y, x), Color.Green);
-                        model.TileList[y].Add(tile);
-                        break;
-                    case 3:
-                        tile = new TileClass(new Vector2Int(y, x), Color.Yellow);
-                        model.TileList[y].Add(tile);
-                        break;
+                    if (model.TileData[x, y] == Color.Null)
+                    {
+                        if (y - 1 >= 0)
+                        {
+                            if (model.TileData[x, y - 1] != Color.Null)
+                            {
+                                model.TileData[x, y] = model.TileData[x, y - 1];
+                                model.TileData[x, y - 1] = Color.Null;
+                                changes += 1;
+                            }
+                        }
+                    }
                 }
+            }
+
+        } while (changes != 0);
+
+        for (int x = 0; x < size.x; x++)
+        {
+            for (int y = 0; y < size.y; y++)
+            {
+                if (model.TileData[x, y] == Color.Null)
+                    model.TileData[x, y] = RandomColor();
             }
         }
 
-        CheckForMatch();
+        SendToDraw();
+        currentState = State.Matching;
     }
 
-    private void CheckForMatch()
+    public void CheckTiles(RaycastHit hitInfo)
     {
-        Vector2Int posToCheck;
+        Vector2Int pos = new Vector2Int(-1, -1);
 
-        for (int y = 0; y < model.TileList.Count; y++)
+        for (int x = 0; x < size.x; x++)
         {
-            for (int x = 0; x < model.TileList[y].Count; x++)
+            for (int y = 0; y < size.y; y++)
             {
-                bool up = false;
-                bool down = false;
-                bool left = false;
-                bool right = false;
-
-                // Checkeo tile superior
-                posToCheck = model.TileList[y][x].PosInList - new Vector2Int(1, 0);
-                if (IsInRange(posToCheck))
-                {
-                    if (!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
-                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
-
-                    if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
-                        up = true;
-                }
-
-                // Checkeo tile inferior
-                posToCheck = model.TileList[y][x].PosInList + new Vector2Int(1, 0);
-                if (IsInRange(posToCheck))
-                {
-                    if (!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
-                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
-
-                    if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
-                        down = true;
-                }
-
-                // Checkeo tile derecha
-                posToCheck = model.TileList[y][x].PosInList + new Vector2Int(0, 1);
-                if (IsInRange(posToCheck))
-                {
-                    if(!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
-                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
-
-                    if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
-                        right = true;
-                }
-
-                // Checkeo tile izquierda
-                posToCheck = model.TileList[y][x].PosInList - new Vector2Int(0, 1);
-                if (IsInRange(posToCheck))
-                {
-                    if (!model.TileList[y][x].Adjacents.Contains(model.TileList[posToCheck.x][posToCheck.y]))
-                        model.TileList[y][x].Adjacents.Add(model.TileList[posToCheck.x][posToCheck.y]);
-
-                    if (model.TileList[posToCheck.x][posToCheck.y].Type == model.TileList[y][x].Type)
-                        left = true;
-                }
-                /*
-                if (right && left)
-                {
-                    if (!tilesToChange.Contains(model.TileList[y][x]))
-                        tilesToChange.Add(model.TileList[y][x]);
-
-                    if (!tilesToChange.Contains(model.TileList[y][x + 1]))
-                        tilesToChange.Add(model.TileList[y][x + 1]);
-
-                    if (!tilesToChange.Contains(model.TileList[y][x - 1]))
-                        tilesToChange.Add(model.TileList[y][x - 1]);
-
-                }
-                else if (up && down)
-                {
-                    if (!tilesToChange.Contains(model.TileList[y][x]))
-                        tilesToChange.Add(model.TileList[y][x]);
-
-                    if (!tilesToChange.Contains(model.TileList[y - 1][x]))
-                        tilesToChange.Add(model.TileList[y - 1][x]);
-
-                    if (!tilesToChange.Contains(model.TileList[y + 1][x]))
-                        tilesToChange.Add(model.TileList[y + 1][x]);
-
-                }
-                */
+                if (view.TileObjects[x, y] == hitInfo.collider.gameObject)
+                    pos = new Vector2Int(x, y);
             }
         }
 
         if (tilesToChange.Count > 0)
         {
-            for (int i = 0; i < tilesToChange.Count; i++)
+            if (pos != tilesToChange[tilesToChange.Count - 1])
             {
-                tilesToChange[i].Type = ChangeType(tilesToChange[i].Type);
-            }
-            tilesToChange.Clear();
-
-            CheckForMatch();
-        }
-    }
-
-    public void TriggerMatch()
-    {
-        if (tilesToChange.Count >= 3)
-        {
-            for (int i = 0; i < tilesToChange.Count; i++)
-            {
-                tilesToChange[i].Type = ChangeType(tilesToChange[i].Type);
-            }
-            tilesToChange.Clear();
-            view.Draw(model.TileList, prefabList);
-        }
-        tilesToChange.Clear();
-    }
-
-    private Color ChangeType(Color type)
-    {
-        Color originalType = type;
-
-        do
-        {
-            switch (Random.Range(0, 4))
-            {
-                case 0:
-                    type = Color.Red;
-                    break;
-                case 1:
-                    type = Color.Blue;
-                    break;
-                case 2:
-                    type = Color.Green;
-                    break;
-                case 3:
-                    type = Color.Yellow;
-                    break;
-            }
-        } while (type == originalType);
-
-        return type;
-    }
-
-    private bool IsInRange(Vector2Int pos)
-    {
-        if (pos.x >= 0 && pos.x < model.TileList.Count)
-            if (pos.y >= 0 && pos.y < model.TileList[pos.x].Count)
-                return true;
-
-        return false;
-    }
-
-    private void SendToDraw()
-    {
-        view.Draw(model.TileList, prefabList);
-    }
-
-    public void GeneratePrefabGrid()
-    {
-        for (int y = 0; y < size.y; y++)
-        {
-            prefabList.Add(new List<GameObject>());
-
-            for (int x = 0; x < size.x; x++)
-            {
-                float posX = startingPos.x + x;
-                float posY = startingPos.y - y;
-                Vector3 pos = new Vector3(posX, posY);
-                GameObject obj = Instantiate(prefab, pos, Quaternion.identity, transform);
-                prefabList[y].Add(obj);
-            }
-        }
-
-        Debug.Log("prefabList is: " + prefabList.Count + " long");
-    }
-
-    public void ClearGrid()
-    {
-        prefabList.Clear();
-        Debug.Log("prefabList is: " + prefabList.Count + " long");
-    }
-
-    public bool CheckTiles(RaycastHit hitInfo)
-    {
-        Vector2Int pos = new Vector2Int(-1, -1);
-
-        for (int i = 0; i < prefabList.Count; i++)
-        {
-            if (prefabList[i].Contains(hitInfo.collider.gameObject))
-            {
-                pos = new Vector2Int(i, prefabList[i].IndexOf(hitInfo.collider.gameObject));
-            }
-        }
-
-        if (IsInRange(pos))
-        {
-            TileClass aux = GetCorrespondantTile(pos);
-            
-            if (tilesToChange.Count > 0)
-            {
-                if (tilesToChange[tilesToChange.Count - 1].Adjacents.Contains(aux))
-                    if (tilesToChange[tilesToChange.Count - 1].Type == GetCorrespondantTile(pos).Type)
-                        if (!tilesToChange.Contains(GetCorrespondantTile(pos)))
-                            tilesToChange.Add(GetCorrespondantTile(pos));
+                if (isAdjacent(tilesToChange[tilesToChange.Count - 1], pos))
+                {
+                    if (model.TileData[pos.x, pos.y] == model.TileData[tilesToChange[tilesToChange.Count - 1].x, tilesToChange[tilesToChange.Count - 1].y])
+                        if (!tilesToChange.Contains(pos))
+                        {
+                            tilesToChange.Add(pos);
+                        }
                         else
                         {
-                            for (int i = tilesToChange.IndexOf(GetCorrespondantTile(pos)) + 1; i < tilesToChange.Count; i++)
+                            for (int i = tilesToChange.IndexOf(pos) + 1; i < tilesToChange.Count; i++)
                             {
                                 tilesToChange.RemoveAt(i);
                             }
                         }
+                }
+
             }
-            else
+        }
+        else
+            tilesToChange.Add(pos);
+    }
+
+    public void TriggerMatch() 
+    {
+        if (tilesToChange.Count >= 3)
+        {
+            foreach (Vector2Int pos in tilesToChange)
             {
-                tilesToChange.Add(GetCorrespondantTile(pos));
+                model.TileData[pos.x, pos.y] = Color.Null;
+            }
+
+            if (points <= 0)
+                GooglePlayServicesController.TriggerArchievement(GPGSIds.achievement_your_first_match);
+
+            int aux = tilesToChange.Count - 3;
+            points += 1 + aux;
+        }
+
+
+        tilesToChange.Clear();
+        CurrentState = State.Resolving;
+        SendToDraw();
+    }
+
+    private bool isAdjacent(Vector2Int first, Vector2Int second)
+    {
+        Vector2Int aux = second - first;
+
+        if (aux == Vector2Int.up)
+            return true;
+        else if (aux == Vector2Int.left)
+            return true;
+        else if (aux == Vector2Int.right)
+            return true;
+        else if (aux == Vector2Int.down)
+            return true;
+        else
+            return false;
+    }
+
+    private void CreateGrids()
+    {
+        view.TileObjects = new GameObject[size.x, size.y];
+        model.TileData = new Color[size.x, size.y];
+
+        Vector3 pos;
+
+        for (int y = 0; y < size.x; y++)
+        {
+            for (int x = 0; x < size.y; x++)
+            {
+                pos = startingPos + new Vector3(1 * y, -1 * x, 0);
+
+                view.TileObjects[y, x] = InstantiatePrefab(pos);
+                model.TileData[y, x] = RandomColor();
             }
         }
 
-        lastTileSelected = pos;
+        CheckMatches(false);
+        SendToDraw();
+    }
 
-        return false;
-    }
-    
-    private TileClass GetCorrespondantTile(Vector2Int pos)
+    private void SendToDraw()
     {
-            return model.TileList[pos.x][pos.y];
+        view.Draw(model.TileData, size);
     }
-    
+
+    private Color RandomColor()
+    {
+        int aux = Random.Range(1, 5);
+        Debug.Log($"aux is {aux}");
+        return (Color)aux;
+    }
+
+    private GameObject InstantiatePrefab(Vector3 position)
+    {
+        GameObject obj = Instantiate(tilePrefab, position, Quaternion.identity, transform);
+        return obj;
+    }
+
+    private void CheckMatches(bool addpoints)
+    {
+        for (int x = 1; x < size.x; x++)
+        {
+            for (int y = 1; y < size.y; y++)
+            {
+                Vector2Int tileToCheck = new Vector2Int(x, y);
+                Vector2Int left = tileToCheck + Vector2Int.left;
+                Vector2Int right = tileToCheck + Vector2Int.right;
+
+                if (model.TileData[tileToCheck.x, tileToCheck.y] == Color.Null)
+                    break;
+
+
+                if (left.x >= 0 && model.TileData[left.x, left.y] == model.TileData[tileToCheck.x, tileToCheck.y])
+                {
+                    if (right.x < size.x && model.TileData[right.x, right.y] == model.TileData[tileToCheck.x, tileToCheck.y])
+                    {
+                        if (!tilesToChange.Contains(left))
+                            tilesToChange.Add(left);
+                        if (!tilesToChange.Contains(tileToCheck))
+                            tilesToChange.Add(tileToCheck);
+                        if (!tilesToChange.Contains(right))
+                            tilesToChange.Add(right);
+                    }
+                }
+
+                Vector2Int up = tileToCheck + Vector2Int.down;
+                Vector2Int down = tileToCheck + Vector2Int.up;
+                if (up.y >= 0 && model.TileData[up.x, up.y] == model.TileData[tileToCheck.x, tileToCheck.y])
+                {
+                    if (down.y < size.y && model.TileData[down.x, down.y] == model.TileData[tileToCheck.x, tileToCheck.y])
+                    {
+                        if (!tilesToChange.Contains(up))
+                            tilesToChange.Add(up);
+                        if (!tilesToChange.Contains(tileToCheck))
+                            tilesToChange.Add(tileToCheck);
+                        if (!tilesToChange.Contains(down))
+                            tilesToChange.Add(down);
+                    }
+                }
+            }
+        }
+
+        if (tilesToChange.Count > 0)
+        {
+            foreach (Vector2Int tile in tilesToChange)
+            {
+                    model.TileData[tile.x, tile.y] = RandomColor();
+            }
+
+            tilesToChange.Clear();
+            CheckMatches(false);
+        }
+    }
+
+    public void EndGame()
+    {
+        GooglePlayServicesController.AddScoreToBoard(GPGSIds.leaderboard_highscore, Points);
+    }
+
     private void OnDrawGizmos()
     {
-        foreach (TileClass g in tilesToChange)
-        {
-            Gizmos.color = UnityEngine.Color.white;
-            Gizmos.DrawWireCube(prefabList[g.PosInList.x][g.PosInList.y].transform.position, Vector3.one);
-        }
+        Gizmos.color = UnityEngine.Color.yellow;
 
-
-        /*
-#if UNITY_EDITOR
-        for (int y = 0; y < model.TileList.Count; y++)
+        foreach (Vector2Int pos in tilesToChange)
         {
-            for (int x = 0; x < model.TileList[y].Count; x++)
-            {
-                Vector2Int aux = model.TileList[y][x].PosInList;
-                Handles.Label(prefabList[aux.x][aux.y].transform.position, aux.ToString());
-            }
+            Gizmos.DrawWireCube(view.TileObjects[pos.x, pos.y].transform.position, Vector3.one);
         }
-#endif
-*/
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-    private void SwapTiles()
-    {
-        GameObject first = prefabList[firstTile.PosInList.x][firstTile.PosInList.y];
-        GameObject second = prefabList[secondTile.PosInList.x][secondTile.PosInList.y];
-
-        originalFirstPos = first.transform.position;
-        originalSecondPos = second.transform.position;
-
-        StartCoroutine(LerpTiles(first, second));
-    }
-
-    IEnumerator LerpTiles(GameObject first, GameObject second)
-    {
-        bool lerpFinished = false;
-        float lerp = 0;
-
-        while (!lerpFinished)
-        {
-            lerp += Time.deltaTime;
-
-            first.transform.position = Vector3.Lerp(originalFirstPos, originalSecondPos, lerp);
-            second.transform.position = Vector3.Lerp(originalSecondPos, originalFirstPos, lerp);
-
-            if (first.transform.position == originalSecondPos && second.transform.position == originalFirstPos)
-                lerpFinished = true;
-
-            yield return null;
-        }
-
-        Color aux = firstTile.Type;
-
-        firstTile.Type = secondTile.Type;
-        secondTile.Type = aux;
-
-        firstSelected = false;
-        secondSelected = false;
-
-        first.transform.position = originalFirstPos;
-        second.transform.position = originalSecondPos;
-
-        CheckForMatch();
-    }
-    */

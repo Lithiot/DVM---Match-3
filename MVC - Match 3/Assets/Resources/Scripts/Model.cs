@@ -2,8 +2,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum Color
+{
+    Null, Red, Blue, Green, Yellow
+}
+
 public class Model
 {
-    private List<List<TileClass>> tileList;
-    internal List<List<TileClass>> TileList { get => tileList; set => tileList = value; }
+    private Color[,] tileData;
+    public Color[,] TileData { get => tileData; set => tileData = value; }
 }

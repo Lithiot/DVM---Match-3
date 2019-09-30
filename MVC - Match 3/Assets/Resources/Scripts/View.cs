@@ -2,92 +2,78 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEditor;
-
-public enum State
-{
-    Idle, Matching, Moving
-}
 
 public class View : MonoBehaviour
 {
-    private State state = State.Idle;
-
     [SerializeField] private Sprite redSprite;
     [SerializeField] private Sprite blueSprite;
     [SerializeField] private Sprite greenSprite;
     [SerializeField] private Sprite yellowSprite;
+    public Controller controller;
 
-    [SerializeField] private Controller controller;
-    [SerializeField] private float responseTime;
+    public Text scoreText;
+
+    private GameObject[,] tileObjects;
+    public GameObject[,] TileObjects { get => tileObjects; set => tileObjects = value; }
 
     float holdingTime = 0.0f;
 
     private void Update()
     {
-        switch (state)
-        {
-            case State.Idle:
+        if (controller.CurrentState == State.Matching)
+            DetectInput();
 
-                break;
-            case State.Matching:
+        scoreText.text = "Score: " + controller.Points.ToString();
+    }
 
-                break;
-            case State.Moving:
-
-                break;
-        }
-
+    private void DetectInput()
+    {
         if (Input.GetMouseButton(0))
         {
             holdingTime += Time.deltaTime;
 
-            if (holdingTime >= responseTime)
-            {
-                DetectInput();
-            }
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hitInfo;
+                if (Physics.Raycast(ray, out hitInfo))
+                    if (hitInfo.collider.CompareTag("Tile"))
+                    {
+                        controller.CheckTiles(hitInfo);
+                    }
         }
         else if (holdingTime > 0)
         {
             controller.TriggerMatch();
             holdingTime = 0.0f;
         }
-        else
-        {
-            holdingTime = 0.0f;
-        }
-    }
-    
-    private void DetectInput()
-    {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hitInfo;
-        if (Physics.Raycast(ray, out hitInfo))
-            if (hitInfo.collider.CompareTag("Tile"))
-            {
-                controller.CheckTiles(hitInfo);
-            }
     }
 
-    public void Draw(List<List<TileClass>> tileList, List<List<GameObject>> objList)
+    public void Draw(Color[,] data, Vector2Int size) 
     {
-        for (int y = 0; y < objList.Count; y++)
+        foreach (GameObject g in TileObjects)
         {
-            for (int x = 0; x < objList[y].Count; x++)
+            g.SetActive(true);
+        }
+
+        for (int x = 0; x < size.x; x++)
+        {
+            for (int y = 0; y < size.y; y++)
             {
-                switch (tileList[y][x].Type)
+                switch (data[x, y])
                 {
+                    case Color.Null:
+                        TileObjects[x, y].SetActive(false);
+                        break;
                     case Color.Red:
-                        objList[y][x].GetComponent<SpriteRenderer>().sprite = redSprite;
+                        TileObjects[x, y].GetComponent<SpriteRenderer>().sprite = redSprite;
                         break;
                     case Color.Blue:
-                        objList[y][x].GetComponent<SpriteRenderer>().sprite = blueSprite;
+                        TileObjects[x, y].GetComponent<SpriteRenderer>().sprite = blueSprite;
                         break;
                     case Color.Green:
-                        objList[y][x].GetComponent<SpriteRenderer>().sprite = greenSprite;
+                        TileObjects[x, y].GetComponent<SpriteRenderer>().sprite = greenSprite;
                         break;
                     case Color.Yellow:
-                        objList[y][x].GetComponent<SpriteRenderer>().sprite = yellowSprite;
+                        TileObjects[x, y].GetComponent<SpriteRenderer>().sprite = yellowSprite;
                         break;
                 }
             }
